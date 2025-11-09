@@ -34,6 +34,13 @@ class MnemonicNotifier extends ChangeNotifier {
     _setMnemonic(normalized);
   }
 
+  Future<void> logout() async {
+    await mnemonicService.clearMnemonic();
+    _mnemonic = null;
+    _userIdHash = null;
+    notifyListeners();
+  }
+
   bool isValidMnemonic(String mnemonic) {
     return mnemonicService.isValidMnemonic(mnemonic);
   }

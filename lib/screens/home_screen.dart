@@ -17,32 +17,34 @@ class HomeScreen extends StatelessWidget {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Cryptic Notes'),
-            actions: [
-              IconButton(
-                onPressed: () => _showImportMnemonicDialog(context),
-                icon: const Icon(Icons.key),
-                tooltip: 'Use existing mnemonic',
-              ),
-              IconButton(
-                onPressed: () =>
-                    _showMnemonicSheet(context, mnemonicNotifier.mnemonic),
-                icon: const Icon(Icons.vpn_key),
-                tooltip: 'Show mnemonic',
-              ),
-            ],
+            leading: IconButton(
+              onPressed: () => _showSettingsSheet(context, mnemonicNotifier),
+              icon: const Icon(Icons.menu),
+              tooltip: 'Settings',
+            ),
           ),
-          body: _buildBody(noteProvider),
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => _openEditor(context),
-            icon: const Icon(Icons.add),
-            label: const Text('New note'),
-          ),
+          body: _buildBody(context, mnemonicNotifier, noteProvider),
+          floatingActionButton: mnemonicNotifier.isReady
+              ? FloatingActionButton.extended(
+                  onPressed: () => _openEditor(context),
+                  icon: const Icon(Icons.add),
+                  label: const Text('New note'),
+                )
+              : null,
         );
       },
     );
   }
 
-  Widget _buildBody(NoteProvider provider) {
+  Widget _buildBody(
+    BuildContext context,
+    MnemonicNotifier mnemonicNotifier,
+    NoteProvider provider,
+  ) {
+    if (!mnemonicNotifier.isReady) {
+      return _buildLoggedOutState(context);
+    }
+
     if (provider.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -76,6 +78,39 @@ class HomeScreen extends StatelessWidget {
       },
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemCount: provider.notes.length,
+    );
+  }
+
+  Widget _buildLoggedOutState(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.lock_outline, size: 64, color: theme.colorScheme.primary),
+            const SizedBox(height: 24),
+            Text(
+              'You are logged out',
+              style: theme.textTheme.titleLarge,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Import your mnemonic to unlock your encrypted notes.',
+              style: theme.textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: () => _showImportMnemonicDialog(context),
+              icon: const Icon(Icons.key),
+              label: const Text('Import mnemonic'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -143,6 +178,102 @@ class HomeScreen extends StatelessWidget {
         );
       },
     );
+  }
+
+  Future<void> _showSettingsSheet(
+    BuildContext context,
+    MnemonicNotifier mnemonicNotifier,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.key),
+                title: const Text('Import mnemonic'),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  _showImportMnemonicDialog(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.vpn_key),
+                title: const Text('Show mnemonic'),
+                enabled: mnemonicNotifier.isReady,
+                onTap: mnemonicNotifier.isReady
+                    ? () {
+                        Navigator.of(sheetContext).pop();
+                        _showMnemonicSheet(context, mnemonicNotifier.mnemonic);
+                      }
+                    : null,
+              ),
+              ListTile(
+                leading: const Icon(Icons.logout),
+                title: const Text('Log out'),
+                enabled: mnemonicNotifier.isReady,
+                onTap: mnemonicNotifier.isReady
+                    ? () {
+                        Navigator.of(sheetContext).pop();
+                        _confirmLogout(context);
+                      }
+                    : null,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _confirmLogout(BuildContext context) async {
+    final shouldLogout = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) {
+            return AlertDialog(
+              title: const Text('Log out'),
+              content: const Text(
+                'Logging out removes the mnemonic from this device. Import it again to access your encrypted notes.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: const Text('Log out'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+
+    if (!shouldLogout || !context.mounted) {
+      return;
+    }
+
+    final notifier = context.read<MnemonicNotifier>();
+    try {
+      await notifier.logout();
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You have been logged out.')),
+      );
+    } catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to log out: $error')),
+      );
+    }
   }
 
   Future<void> _showImportMnemonicDialog(BuildContext context) async {

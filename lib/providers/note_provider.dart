@@ -40,6 +40,10 @@ class NoteProvider extends ChangeNotifier {
   }
 
   void updateMnemonic(MnemonicNotifier mnemonicNotifier) {
+    if (!mnemonicNotifier.isReady) {
+      _clearSession();
+      return;
+    }
     if (_mnemonic == mnemonicNotifier.mnemonic) {
       return;
     }
@@ -130,6 +134,24 @@ class NoteProvider extends ChangeNotifier {
     _loading = false;
     _error = error.toString();
     notifyListeners();
+  }
+
+  void _clearSession() {
+    final hadData = _mnemonic != null ||
+        _userIdHash != null ||
+        _notes.isNotEmpty ||
+        _loading ||
+        _error != null;
+    _subscription?.cancel();
+    _subscription = null;
+    _mnemonic = null;
+    _userIdHash = null;
+    _notes = <SecureNote>[];
+    _loading = false;
+    _error = null;
+    if (hadData) {
+      notifyListeners();
+    }
   }
 }
 

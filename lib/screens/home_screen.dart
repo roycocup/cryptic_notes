@@ -19,6 +19,11 @@ class HomeScreen extends StatelessWidget {
             title: const Text('Cryptic Notes'),
             actions: [
               IconButton(
+                onPressed: () => _showImportMnemonicDialog(context),
+                icon: const Icon(Icons.key),
+                tooltip: 'Use existing mnemonic',
+              ),
+              IconButton(
                 onPressed: () =>
                     _showMnemonicSheet(context, mnemonicNotifier.mnemonic),
                 icon: const Icon(Icons.vpn_key),
@@ -75,17 +80,12 @@ class HomeScreen extends StatelessWidget {
   }
 
   void _openEditor(BuildContext context, {SecureNote? note}) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => NoteEditorScreen(note: note),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => NoteEditorScreen(note: note)));
   }
 
-  Future<void> _showMnemonicSheet(
-    BuildContext context,
-    String mnemonic,
-  ) async {
+  Future<void> _showMnemonicSheet(BuildContext context, String mnemonic) async {
     final words = mnemonic.split(' ');
     await showModalBottomSheet<void>(
       context: context,
@@ -116,17 +116,14 @@ class HomeScreen extends StatelessWidget {
                     runSpacing: 8,
                     children: List.generate(
                       words.length,
-                      (index) => Chip(
-                        label: Text('${index + 1}. ${words[index]}'),
-                      ),
+                      (index) =>
+                          Chip(label: Text('${index + 1}. ${words[index]}')),
                     ),
                   ),
                   const SizedBox(height: 16),
                   FilledButton.icon(
                     onPressed: () async {
-                      await Clipboard.setData(
-                        ClipboardData(text: mnemonic),
-                      );
+                      await Clipboard.setData(ClipboardData(text: mnemonic));
                       if (context.mounted) {
                         Navigator.of(context).pop();
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -143,6 +140,74 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
           ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showImportMnemonicDialog(BuildContext context) async {
+    final mnemonicNotifier = context.read<MnemonicNotifier>();
+    final controller = TextEditingController();
+    String? errorMessage;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Enter mnemonic'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    minLines: 2,
+                    maxLines: 4,
+                    textInputAction: TextInputAction.done,
+                    decoration: InputDecoration(
+                      hintText: 'Enter your 12-word mnemonic',
+                      errorText: errorMessage,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () async {
+                    final input = controller.text;
+                    if (!mnemonicNotifier.isValidMnemonic(input)) {
+                      setState(() {
+                        errorMessage = 'That mnemonic is not valid.';
+                      });
+                      return;
+                    }
+                    try {
+                      await mnemonicNotifier.importMnemonic(input);
+                      if (context.mounted) {
+                        Navigator.of(context).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Mnemonic imported successfully.'),
+                          ),
+                        );
+                      }
+                    } catch (error) {
+                      setState(() {
+                        errorMessage = 'Failed to import mnemonic.';
+                      });
+                    }
+                  },
+                  child: const Text('Use mnemonic'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -203,9 +268,7 @@ class _NoteCard extends StatelessWidget {
     String twoDigits(int value) => value.toString().padLeft(2, '0');
     final datePart =
         '${local.year}-${twoDigits(local.month)}-${twoDigits(local.day)}';
-    final timePart =
-        '${twoDigits(local.hour)}:${twoDigits(local.minute)}';
+    final timePart = '${twoDigits(local.hour)}:${twoDigits(local.minute)}';
     return '$datePart $timePart';
   }
 }
-

@@ -29,6 +29,15 @@ class MnemonicNotifier extends ChangeNotifier {
 
   Future<void> reset() => regenerate();
 
+  Future<void> importMnemonic(String mnemonic) async {
+    final normalized = await mnemonicService.importMnemonic(mnemonic);
+    _setMnemonic(normalized);
+  }
+
+  bool isValidMnemonic(String mnemonic) {
+    return mnemonicService.isValidMnemonic(mnemonic);
+  }
+
   void _setMnemonic(String value) {
     final normalized = value.trim().replaceAll(RegExp(r'\s+'), ' ');
     _mnemonic = normalized;
@@ -36,4 +45,3 @@ class MnemonicNotifier extends ChangeNotifier {
     notifyListeners();
   }
 }
-

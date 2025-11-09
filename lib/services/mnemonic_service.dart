@@ -5,9 +5,8 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class MnemonicService {
-  MnemonicService({
-    FlutterSecureStorage? secureStorage,
-  }) : _storage = secureStorage ?? const FlutterSecureStorage();
+  MnemonicService({FlutterSecureStorage? secureStorage})
+    : _storage = secureStorage ?? const FlutterSecureStorage();
 
   static const _mnemonicKey = 'user_mnemonic';
   static const _androidOptions = AndroidOptions(
@@ -46,11 +45,24 @@ class MnemonicService {
     );
   }
 
+  Future<String> importMnemonic(String mnemonic) async {
+    final normalized = _normalize(mnemonic);
+    if (!bip39.validateMnemonic(normalized)) {
+      throw ArgumentError('Invalid mnemonic phrase.');
+    }
+    await saveMnemonic(normalized);
+    return normalized;
+  }
+
+  bool isValidMnemonic(String mnemonic) {
+    return bip39.validateMnemonic(_normalize(mnemonic));
+  }
+
   Future<void> clearMnemonic() => _storage.delete(
-        key: _mnemonicKey,
-        aOptions: _androidOptions,
-        iOptions: _iosOptions,
-      );
+    key: _mnemonicKey,
+    aOptions: _androidOptions,
+    iOptions: _iosOptions,
+  );
 
   String deriveUserId(String mnemonic) {
     final normalized = _normalize(mnemonic);
@@ -61,4 +73,3 @@ class MnemonicService {
   String _normalize(String mnemonic) =>
       mnemonic.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
 }
-

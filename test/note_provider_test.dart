@@ -43,13 +43,13 @@ void main() {
       mnemonicNotifier.dispose();
     });
 
-    Future<void> _pumpEvents() async {
+    Future<void> pumpEvents() async {
       await pumpEventQueue(times: 5);
     }
 
     test('saveNote persists and exposes decrypted note', () async {
       await provider.saveNote(title: 'Hello', body: 'Secret body');
-      await _pumpEvents();
+      await pumpEvents();
 
       expect(provider.notes, hasLength(1));
       final note = provider.notes.single;
@@ -60,7 +60,7 @@ void main() {
 
     test('updateNote refreshes existing note contents', () async {
       await provider.saveNote(title: 'Original', body: 'Body');
-      await _pumpEvents();
+      await pumpEvents();
 
       final existing = provider.notes.single;
       await provider.saveNote(
@@ -68,7 +68,7 @@ void main() {
         title: 'Updated',
         body: 'New body',
       );
-      await _pumpEvents();
+      await pumpEvents();
 
       final updated = provider.notes.single;
       expect(updated.id, existing.id);

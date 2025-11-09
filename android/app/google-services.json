@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "640493088075",
+    "project_id": "cryptic-notes-b93eb",
+    "storage_bucket": "cryptic-notes-b93eb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:640493088075:android:9df562d891ddf3a4304cce",
+        "android_client_info": {
+          "package_name": "com.example.cryptic_notes"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCBG_EosazJw6ZqtlImvYJgmYrTsRJVjj4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:640493088075:android:33acb3ded7033522304cce",
+        "android_client_info": {
+          "package_name": "uk.co.rodderscode.cryptic_notes"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCBG_EosazJw6ZqtlImvYJgmYrTsRJVjj4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

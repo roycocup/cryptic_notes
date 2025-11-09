@@ -7,13 +7,40 @@ import '../providers/mnemonic_notifier.dart';
 import '../providers/note_provider.dart';
 import 'note_editor_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  late final TextEditingController _searchController;
+  bool _isSyncingSearch = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+    _searchController.addListener(_handleSearchChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = context.read<NoteProvider>();
+      _syncSearchController(provider.searchQuery);
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_handleSearchChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Consumer2<MnemonicNotifier, NoteProvider>(
       builder: (context, mnemonicNotifier, noteProvider, _) {
+        _syncSearchController(noteProvider.searchQuery);
         return Scaffold(
           appBar: AppBar(
             title: const Text('Cryptic Notes'),
@@ -58,27 +85,80 @@ class HomeScreen extends StatelessWidget {
       );
     }
 
-    if (provider.notes.isEmpty) {
-      return const Center(
-        child: Text(
-          'No notes yet.\nTap the button to create your first encrypted note.',
-          textAlign: TextAlign.center,
-        ),
-      );
-    }
+    final filtered = provider.filteredNotes;
+    final hasQuery = provider.searchQuery.trim().isNotEmpty;
 
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      itemBuilder: (context, index) {
-        final note = provider.notes[index];
-        return _NoteCard(
-          note: note,
-          onTap: () => _openEditor(context, note: note),
-        );
-      },
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemCount: provider.notes.length,
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Search notes',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _searchController.text.isEmpty
+                  ? null
+                  : IconButton(
+                      onPressed: _clearSearch,
+                      icon: const Icon(Icons.clear),
+                      tooltip: 'Clear search',
+                    ),
+              border: const OutlineInputBorder(),
+            ),
+            textInputAction: TextInputAction.search,
+          ),
+        ),
+        Expanded(
+          child: filtered.isEmpty
+              ? Center(
+                  child: Text(
+                    hasQuery
+                        ? 'No notes match your search.'
+                        : 'No notes yet.\nTap the button to create your first encrypted note.',
+                    textAlign: TextAlign.center,
+                  ),
+                )
+              : ListView.separated(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  itemBuilder: (context, index) {
+                    final note = filtered[index];
+                    return _NoteCard(
+                      note: note,
+                      onTap: () => _openEditor(context, note: note),
+                    );
+                  },
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemCount: filtered.length,
+                ),
+        ),
+      ],
     );
+  }
+
+  void _syncSearchController(String value) {
+    if (_searchController.text == value) {
+      return;
+    }
+    _isSyncingSearch = true;
+    _searchController.value = TextEditingValue(
+      text: value,
+      selection: TextSelection.collapsed(offset: value.length),
+    );
+    _isSyncingSearch = false;
+  }
+
+  void _handleSearchChanged() {
+    if (_isSyncingSearch) {
+      return;
+    }
+    context.read<NoteProvider>().updateSearchQuery(_searchController.text);
+    setState(() {});
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
   }
 
   Widget _buildLoggedOutState(BuildContext context) {

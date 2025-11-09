@@ -26,8 +26,26 @@ class NoteProvider extends ChangeNotifier {
   String? _userIdHash;
   bool _loading = false;
   String? _error;
+  String _searchQuery = '';
 
   List<SecureNote> get notes => List.unmodifiable(_notes);
+
+  List<SecureNote> get filteredNotes {
+    final query = _searchQuery.trim();
+    if (query.isEmpty) {
+      return notes;
+    }
+    final lowerQuery = query.toLowerCase();
+    return notes
+        .where(
+          (note) =>
+              note.title.toLowerCase().contains(lowerQuery) ||
+              note.body.toLowerCase().contains(lowerQuery),
+        )
+        .toList(growable: false);
+  }
+
+  String get searchQuery => _searchQuery;
 
   bool get isLoading => _loading;
 
@@ -48,6 +66,14 @@ class NoteProvider extends ChangeNotifier {
       return;
     }
     _applyMnemonic(mnemonicNotifier);
+  }
+
+  void updateSearchQuery(String query) {
+    if (_searchQuery == query) {
+      return;
+    }
+    _searchQuery = query;
+    notifyListeners();
   }
 
   Future<void> saveNote({
@@ -149,6 +175,7 @@ class NoteProvider extends ChangeNotifier {
     _notes = <SecureNote>[];
     _loading = false;
     _error = null;
+    _searchQuery = '';
     if (hadData) {
       notifyListeners();
     }

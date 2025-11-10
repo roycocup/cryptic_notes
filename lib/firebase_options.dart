@@ -71,5 +71,4 @@ class DefaultFirebaseOptions {
     storageBucket: 'cryptic-notes-b93eb.firebasestorage.app',
     measurementId: 'G-KK09V4RGLQ',
   );
-
 }

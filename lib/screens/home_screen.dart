@@ -16,16 +16,22 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late final TextEditingController _searchController;
+  late final FocusNode _searchFocusNode;
   bool _isSyncingSearch = false;
+  bool _isSearchExpanded = false;
 
   @override
   void initState() {
     super.initState();
     _searchController = TextEditingController();
+    _searchFocusNode = FocusNode();
     _searchController.addListener(_handleSearchChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<NoteProvider>();
       _syncSearchController(provider.searchQuery);
+      if (provider.searchQuery.trim().isNotEmpty && !_isSearchExpanded) {
+        _isSearchExpanded = true;
+      }
     });
   }
 
@@ -33,6 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _searchController.removeListener(_handleSearchChanged);
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -49,6 +56,19 @@ class _HomeScreenState extends State<HomeScreen> {
               icon: const Icon(Icons.menu),
               tooltip: 'Settings',
             ),
+            actions: [
+              IconButton(
+                onPressed: () => _toggleSearch(noteProvider),
+                icon: Icon(
+                  _shouldShowSearchField(noteProvider)
+                      ? Icons.close
+                      : Icons.search,
+                ),
+                tooltip: _shouldShowSearchField(noteProvider)
+                    ? 'Close search'
+                    : 'Search notes',
+              ),
+            ],
           ),
           body: _buildBody(context, mnemonicNotifier, noteProvider),
           floatingActionButton: mnemonicNotifier.isReady
@@ -90,24 +110,31 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Search notes',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _searchController.text.isEmpty
-                  ? null
-                  : IconButton(
-                      onPressed: _clearSearch,
-                      icon: const Icon(Icons.clear),
-                      tooltip: 'Clear search',
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: _shouldShowSearchField(provider)
+              ? Padding(
+                  key: const ValueKey('search-field'),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: TextField(
+                    controller: _searchController,
+                    focusNode: _searchFocusNode,
+                    decoration: InputDecoration(
+                      hintText: 'Search notes',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _searchController.text.isEmpty
+                          ? null
+                          : IconButton(
+                              onPressed: _clearSearch,
+                              icon: const Icon(Icons.clear),
+                              tooltip: 'Clear search',
+                            ),
+                      border: const OutlineInputBorder(),
                     ),
-              border: const OutlineInputBorder(),
-            ),
-            textInputAction: TextInputAction.search,
-          ),
+                    textInputAction: TextInputAction.search,
+                  ),
+                )
+              : const SizedBox(key: ValueKey('search-placeholder'), height: 0),
         ),
         Expanded(
           child: filtered.isEmpty
@@ -120,8 +147,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 )
               : ListView.separated(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 16,
+                  ),
                   itemBuilder: (context, index) {
                     final note = filtered[index];
                     return _NoteCard(
@@ -135,6 +164,22 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ],
     );
+  }
+
+  void _toggleSearch(NoteProvider provider) {
+    setState(() {
+      if (_isSearchExpanded) {
+        _isSearchExpanded = false;
+        _searchFocusNode.unfocus();
+      } else {
+        _isSearchExpanded = true;
+        _searchFocusNode.requestFocus();
+      }
+    });
+  }
+
+  bool _shouldShowSearchField(NoteProvider provider) {
+    return _isSearchExpanded || provider.searchQuery.trim().isNotEmpty;
   }
 
   void _syncSearchController(String value) {
@@ -169,7 +214,11 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.lock_outline, size: 64, color: theme.colorScheme.primary),
+            Icon(
+              Icons.lock_outline,
+              size: 64,
+              color: theme.colorScheme.primary,
+            ),
             const SizedBox(height: 24),
             Text(
               'You are logged out',
@@ -310,7 +359,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _confirmLogout(BuildContext context) async {
-    final shouldLogout = await showDialog<bool>(
+    final shouldLogout =
+        await showDialog<bool>(
           context: context,
           builder: (dialogContext) {
             return AlertDialog(
@@ -350,9 +400,9 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!context.mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to log out: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to log out: $error')));
     }
   }
 

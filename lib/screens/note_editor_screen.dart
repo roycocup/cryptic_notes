@@ -1,3 +1,4 @@
+import 'package:diacritic/diacritic.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:provider/provider.dart';
@@ -376,20 +377,20 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   }
 
   List<int> _computeMatches(String query, String text) {
-    if (query.isEmpty) {
+    final normalizedQuery = _normalize(query);
+    if (normalizedQuery.isEmpty) {
       return const <int>[];
     }
-    final lowerQuery = query.toLowerCase();
-    final lowerText = text.toLowerCase();
+    final normalizedText = _normalize(text);
     final matches = <int>[];
     var start = 0;
     while (true) {
-      final index = lowerText.indexOf(lowerQuery, start);
+      final index = normalizedText.indexOf(normalizedQuery, start);
       if (index == -1) {
         break;
       }
       matches.add(index);
-      start = index + lowerQuery.length;
+      start = index + normalizedQuery.length;
     }
     return matches;
   }
@@ -533,16 +534,16 @@ class _HighlightingTextEditingController extends TextEditingController {
       );
     }
 
-    final lowerText = textValue.toLowerCase();
-    final lowerQuery = _highlightQuery.toLowerCase();
-    if (!lowerText.contains(lowerQuery)) {
+    final normalizedText = _normalize(textValue);
+    final normalizedQuery = _normalize(_highlightQuery);
+    if (!normalizedText.contains(normalizedQuery)) {
       return TextSpan(style: style, text: textValue);
     }
 
     final spans = <TextSpan>[];
     var start = 0;
     while (true) {
-      final index = lowerText.indexOf(lowerQuery, start);
+      final index = normalizedText.indexOf(normalizedQuery, start);
       if (index == -1) {
         break;
       }
@@ -551,7 +552,7 @@ class _HighlightingTextEditingController extends TextEditingController {
       }
       spans.add(
         TextSpan(
-          text: textValue.substring(index, index + lowerQuery.length),
+          text: textValue.substring(index, index + normalizedQuery.length),
           style: style?.merge(
                 const TextStyle(
                   backgroundColor: _highlightColor,
@@ -560,7 +561,7 @@ class _HighlightingTextEditingController extends TextEditingController {
               const TextStyle(backgroundColor: _highlightColor),
         ),
       );
-      start = index + lowerQuery.length;
+      start = index + normalizedQuery.length;
     }
     if (start < textValue.length) {
       spans.add(TextSpan(text: textValue.substring(start), style: style));
@@ -568,5 +569,9 @@ class _HighlightingTextEditingController extends TextEditingController {
 
     return TextSpan(style: style, children: spans);
   }
+}
+
+String _normalize(String value) {
+  return removeDiacritics(value).toLowerCase();
 }
 

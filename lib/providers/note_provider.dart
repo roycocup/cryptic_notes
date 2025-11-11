@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:diacritic/diacritic.dart';
 import 'package:flutter/foundation.dart';
 
 import '../models/secure_note.dart';
@@ -35,12 +36,12 @@ class NoteProvider extends ChangeNotifier {
     if (query.isEmpty) {
       return notes;
     }
-    final lowerQuery = query.toLowerCase();
+    final normalizedQuery = _normalize(query);
     return notes
         .where(
           (note) =>
-              note.title.toLowerCase().contains(lowerQuery) ||
-              note.body.toLowerCase().contains(lowerQuery),
+              _normalize(note.title).contains(normalizedQuery) ||
+              _normalize(note.body).contains(normalizedQuery),
         )
         .toList(growable: false);
   }
@@ -180,5 +181,9 @@ class NoteProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+}
+
+String _normalize(String value) {
+  return removeDiacritics(value).toLowerCase();
 }
 

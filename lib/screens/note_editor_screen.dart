@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:diacritic/diacritic.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/secure_note.dart';
 import '../providers/note_provider.dart';
@@ -32,8 +35,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.note?.title ?? '');
-    _bodyController =
-        _HighlightingTextEditingController(text: widget.note?.body ?? '');
+    _bodyController = _HighlightingTextEditingController(
+      text: widget.note?.body ?? '',
+    );
     _searchController = TextEditingController();
     _bodyFocusNode = FocusNode();
     _searchFocusNode = FocusNode();
@@ -62,6 +66,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final isEditing = widget.note != null;
     return DefaultTabController(
       length: 2,
+      initialIndex: isEditing ? 0 : 1,
       child: Scaffold(
         appBar: AppBar(
           title: Text(isEditing ? 'Edit Note' : 'New Note'),
@@ -73,8 +78,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                 if (_isSearching) _buildSearchControls(context),
                 const TabBar(
                   tabs: [
-                    Tab(text: 'Write'),
                     Tab(text: 'Preview'),
+                    Tab(text: 'Write'),
                   ],
                 ),
               ],
@@ -108,6 +113,29 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.all(16),
+              child: ListView(
+                children: [
+                  if (_titleController.text.trim().isNotEmpty) ...[
+                    Text(
+                      _titleController.text,
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  MarkdownBody(
+                    data: _bodyController.text.isEmpty
+                        ? '_Nothing to preview yet._'
+                        : _bodyController.text,
+                    selectable: true,
+                    onTapLink: (text, href, title) {
+                      unawaited(_handlePreviewLinkTap(href));
+                    },
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
                   TextField(
@@ -139,26 +167,6 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                 ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: ListView(
-                children: [
-                  if (_titleController.text.trim().isNotEmpty) ...[
-                    Text(
-                      _titleController.text,
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  MarkdownBody(
-                    data: _bodyController.text.isEmpty
-                        ? '_Nothing to preview yet._'
-                        : _bodyController.text,
-                    selectable: true,
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),
@@ -167,8 +175,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
   Widget _buildSearchControls(BuildContext context) {
     final matchCount = _searchMatches.length;
-    final matchSummary =
-        matchCount == 0 ? '0/0' : '${_currentMatchIndex + 1}/$matchCount';
+    final matchSummary = matchCount == 0
+        ? '0/0'
+        : '${_currentMatchIndex + 1}/$matchCount';
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: Row(
@@ -194,10 +203,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          Text(
-            matchSummary,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
+          Text(matchSummary, style: Theme.of(context).textTheme.bodyMedium),
           IconButton(
             icon: const Icon(Icons.keyboard_arrow_up),
             onPressed: matchCount > 0 ? _goToPreviousMatch : null,
@@ -229,19 +235,19 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     setState(() => _isSaving = true);
     try {
       await context.read<NoteProvider>().saveNote(
-            id: widget.note?.id,
-            title: title,
-            body: body,
-          );
+        id: widget.note?.id,
+        title: title,
+        body: body,
+      );
       if (!mounted) {
         return;
       }
       Navigator.of(context).pop();
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save note: $error')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to save note: $error')));
       }
     } finally {
       if (mounted) {
@@ -280,9 +286,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
     setState(() => _isSaving = true);
     try {
-      await context
-          .read<NoteProvider>()
-          .deleteNote(widget.note!.id);
+      await context.read<NoteProvider>().deleteNote(widget.note!.id);
       if (!mounted) {
         return;
       }
@@ -291,9 +295,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to delete note: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to delete note: $error')));
       setState(() => _isSaving = false);
     }
   }
@@ -306,8 +310,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     _bodyController.setHighlightQuery(hasQuery ? _searchController.text : '');
     setState(() {
       if (hasQuery) {
-        final matches =
-            _computeMatches(_searchController.text, _bodyController.text);
+        final matches = _computeMatches(
+          _searchController.text,
+          _bodyController.text,
+        );
         _applyMatches(matches, jumpToFirst: false);
       }
     });
@@ -324,8 +330,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     if (!mounted) {
       return;
     }
-    final matches =
-        _computeMatches(_searchController.text, _bodyController.text);
+    final matches = _computeMatches(
+      _searchController.text,
+      _bodyController.text,
+    );
     _bodyController.setHighlightQuery(_searchController.text);
     setState(() {
       _applyMatches(matches, jumpToFirst: true);
@@ -352,8 +360,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       }
     });
     if (_searchController.text.isNotEmpty) {
-      final matches =
-          _computeMatches(_searchController.text, _bodyController.text);
+      final matches = _computeMatches(
+        _searchController.text,
+        _bodyController.text,
+      );
       setState(() {
         _applyMatches(matches, jumpToFirst: true);
       });
@@ -443,7 +453,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     }
     final start = _searchMatches[_currentMatchIndex];
     final end = start + query.length;
-    _bodyController.selection = TextSelection(baseOffset: start, extentOffset: end);
+    _bodyController.selection = TextSelection(
+      baseOffset: start,
+      extentOffset: end,
+    );
     _centerOnCurrentMatch();
   }
 
@@ -452,8 +465,35 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     _bodyController.selection = TextSelection.collapsed(offset: length);
   }
 
+  Future<void> _handlePreviewLinkTap(String? href) async {
+    if (href == null || href.isEmpty || !mounted) {
+      return;
+    }
+    Uri? uri;
+    try {
+      uri = Uri.parse(href);
+    } catch (_) {
+      return;
+    }
+    if (!uri.hasScheme) {
+      final fallback = href.startsWith('//') ? 'https:$href' : 'https://$href';
+      uri = Uri.tryParse(fallback);
+      if (uri == null) {
+        return;
+      }
+    }
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not open the link.')));
+    }
+  }
+
   void _centerOnCurrentMatch() {
-    if (!_bodyScrollController.hasClients || _searchMatches.isEmpty || !mounted) {
+    if (!_bodyScrollController.hasClients ||
+        _searchMatches.isEmpty ||
+        !mounted) {
       return;
     }
     final start = _searchMatches[_currentMatchIndex];
@@ -477,7 +517,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         return;
       }
       final text = _bodyController.text;
-      final textStyle = Theme.of(context).textTheme.bodyMedium ?? const TextStyle();
+      final textStyle =
+          Theme.of(context).textTheme.bodyMedium ?? const TextStyle();
       final direction = Directionality.of(context);
       final safeStart = start.clamp(0, text.length);
       final substring = text.substring(0, safeStart);
@@ -494,8 +535,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       final targetOffset = caretOffset - (viewportHeight - lineHeight) / 2;
       final maxScroll = _bodyScrollController.position.maxScrollExtent;
       final minScroll = _bodyScrollController.position.minScrollExtent;
-      final clamped =
-          targetOffset.clamp(minScroll, maxScroll).toDouble();
+      final clamped = targetOffset.clamp(minScroll, maxScroll).toDouble();
       _bodyScrollController.animateTo(
         clamped,
         duration: const Duration(milliseconds: 200),
@@ -548,16 +588,15 @@ class _HighlightingTextEditingController extends TextEditingController {
         break;
       }
       if (index > start) {
-        spans.add(TextSpan(text: textValue.substring(start, index), style: style));
+        spans.add(
+          TextSpan(text: textValue.substring(start, index), style: style),
+        );
       }
       spans.add(
         TextSpan(
           text: textValue.substring(index, index + normalizedQuery.length),
-          style: style?.merge(
-                const TextStyle(
-                  backgroundColor: _highlightColor,
-                ),
-              ) ??
+          style:
+              style?.merge(const TextStyle(backgroundColor: _highlightColor)) ??
               const TextStyle(backgroundColor: _highlightColor),
         ),
       );
@@ -574,4 +613,3 @@ class _HighlightingTextEditingController extends TextEditingController {
 String _normalize(String value) {
   return removeDiacritics(value).toLowerCase();
 }
-

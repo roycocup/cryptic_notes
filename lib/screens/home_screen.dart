@@ -108,8 +108,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final filtered = provider.filteredNotes;
     final hasQuery = provider.searchQuery.trim().isNotEmpty;
 
-    final bottomInset = MediaQuery.of(context).padding.bottom;
-    final trailingButtonSpace = mnemonicNotifier.isReady ? 72.0 : 16.0;
+    final mediaQuery = MediaQuery.of(context);
+    final bottomInset = mediaQuery.viewPadding.bottom;
+    final hasFab = mnemonicNotifier.isReady;
+    const fabHeight = 56.0;
+    final trailingButtonSpace =
+        hasFab ? kFloatingActionButtonMargin + fabHeight : 16.0;
     final listPadding = EdgeInsets.fromLTRB(
       16,
       12,
@@ -119,7 +123,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return SafeArea(
       top: false,
-      bottom: true,
+      bottom: false,
       child: Column(
         children: [
           AnimatedSwitcher(
@@ -163,6 +167,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   )
                 : ListView.separated(
                     padding: listPadding,
+                    physics: const AlwaysScrollableScrollPhysics(),
                     itemBuilder: (context, index) {
                       final note = filtered[index];
                       return _NoteCard(

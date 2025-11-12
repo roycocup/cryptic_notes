@@ -1,6 +1,6 @@
 {
-    "name": "cryptic_notes",
-    "short_name": "cryptic_notes",
+    "name": "Cryptic Notes",
+    "short_name": "Cryptic Notes",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

@@ -109,7 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final hasQuery = provider.searchQuery.trim().isNotEmpty;
 
     final mediaQuery = MediaQuery.of(context);
-    final bottomInset = mediaQuery.viewPadding.bottom;
+    final bottomInset = mediaQuery.padding.bottom;
     final hasFab = mnemonicNotifier.isReady;
     const fabHeight = 56.0;
     final trailingButtonSpace =
@@ -123,7 +123,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return SafeArea(
       top: false,
-      bottom: false,
+      bottom: true,
       child: Column(
         children: [
           AnimatedSwitcher(

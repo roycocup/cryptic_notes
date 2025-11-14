@@ -1,7 +1,11 @@
 [] Web version
 	[] Links need to work from preview
+	[] Needs to work on outpost
 [] Android Version
 	[] Logo better crop
+	[] Edit as default 
+	[] Change "edit" not "write"
 	[] Search needs to work from preview too
-	[] Preview needs to be the default view
-	[] Github releases
+[] Multi user
+	[] Try multiple user
+		[] Firebase should only have a single login per user

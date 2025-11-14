@@ -89,7 +89,7 @@ class _HomeScreenState extends State<HomeScreen> {
     NoteProvider provider,
   ) {
     if (!mnemonicNotifier.isReady) {
-      return _buildLoggedOutState(context);
+      return _buildLoggedOutState(context, mnemonicNotifier);
     }
 
     if (provider.isLoading) {
@@ -112,8 +112,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final bottomInset = mediaQuery.padding.bottom;
     final hasFab = mnemonicNotifier.isReady;
     const fabHeight = 56.0;
-    final trailingButtonSpace =
-        hasFab ? kFloatingActionButtonMargin + fabHeight : 16.0;
+    final trailingButtonSpace = hasFab
+        ? kFloatingActionButtonMargin + fabHeight
+        : 16.0;
     final listPadding = EdgeInsets.fromLTRB(
       16,
       12,
@@ -224,7 +225,10 @@ class _HomeScreenState extends State<HomeScreen> {
     _searchController.clear();
   }
 
-  Widget _buildLoggedOutState(BuildContext context) {
+  Widget _buildLoggedOutState(
+    BuildContext context,
+    MnemonicNotifier mnemonicNotifier,
+  ) {
     final theme = Theme.of(context);
     return Center(
       child: Padding(
@@ -254,6 +258,13 @@ class _HomeScreenState extends State<HomeScreen> {
               onPressed: () => _showImportMnemonicDialog(context),
               icon: const Icon(Icons.key),
               label: const Text('Import mnemonic'),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () =>
+                  _generateRandomMnemonic(context, mnemonicNotifier),
+              icon: const Icon(Icons.auto_awesome),
+              label: const Text('Generate random mnemonic'),
             ),
           ],
         ),
@@ -325,6 +336,32 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       },
     );
+  }
+
+  Future<void> _generateRandomMnemonic(
+    BuildContext context,
+    MnemonicNotifier mnemonicNotifier,
+  ) async {
+    try {
+      await mnemonicNotifier.regenerate();
+      if (!context.mounted) {
+        return;
+      }
+      await _showMnemonicSheet(context, mnemonicNotifier.mnemonic);
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('New mnemonic generated.')));
+    } catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to generate mnemonic: $error')),
+      );
+    }
   }
 
   Future<void> _showSettingsSheet(
